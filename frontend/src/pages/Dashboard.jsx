@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { Shield, ArrowLeftRight } from 'lucide-react'
+import { Shield, ArrowLeftRight, MapPin, BarChart3, Bot, FileDown } from 'lucide-react'
 import AddressSearch from '../components/AddressSearch'
 import RiskCard from '../components/RiskCard'
 import OverallRisk from '../components/OverallRisk'
@@ -161,14 +161,36 @@ export default function Dashboard() {
           )}
 
           {!riskProfile && !isLoading && !error && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Shield className="w-16 h-16 text-bg-tertiary mb-4" />
-              <h2 className="text-lg font-semibold text-text-primary mb-1">
-                Know Your Risk
-              </h2>
-              <p className="text-sm text-text-secondary max-w-xs">
-                Enter any U.S. address to get a comprehensive disaster risk assessment powered by AI.
-              </p>
+            <div className="py-8">
+              <div className="flex flex-col items-center text-center mb-6">
+                <Shield className="w-12 h-12 text-accent/40 mb-3" />
+                <h2 className="text-lg font-semibold text-text-primary mb-1">
+                  Know Your Risk
+                </h2>
+                <p className="text-sm text-text-secondary max-w-xs">
+                  Get a comprehensive disaster risk assessment for any U.S. address.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-[10px] text-text-secondary uppercase tracking-wider font-medium px-1">How it works</p>
+                {[
+                  { icon: MapPin, step: '1', title: 'Enter an address', desc: 'Type any U.S. address in the search bar above' },
+                  { icon: BarChart3, step: '2', title: 'View risk scores', desc: 'See hurricane, flood, earthquake & wildfire risk levels' },
+                  { icon: Bot, step: '3', title: 'Read AI insights', desc: 'Get a personalized safety report powered by Gemini AI' },
+                  { icon: FileDown, step: '4', title: 'Export & compare', desc: 'Download a PDF report or compare two addresses' },
+                ].map(({ icon: Icon, step, title, desc }) => (
+                  <div key={step} className="flex items-start gap-3 p-3 rounded-lg bg-bg-secondary/50 border border-white/5">
+                    <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4 text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{title}</p>
+                      <p className="text-xs text-text-secondary mt-0.5">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
