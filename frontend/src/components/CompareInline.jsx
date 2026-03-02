@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   ArrowLeftRight, X, Loader2, MapPin, Search,
-  CloudLightning, Waves, Mountain, Flame, ShieldAlert, ChevronDown, ChevronUp,
+  CloudLightning, Waves, Mountain, Flame, ShieldAlert, Trophy,
 } from 'lucide-react'
 import { geocodeAddress, getRiskProfile } from '../services/api'
 
@@ -37,7 +37,7 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
   const [resultB, setResultB] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [showBreakdown, setShowBreakdown] = useState(true)
+  const [showBreakdown] = useState(true)
   const inputRef = useRef(null)
   const autocompleteRef = useRef(null)
 
@@ -188,77 +188,95 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
 
       {/* Comparison results */}
       {rB && (
-        <div className="px-3 pb-3 pt-2">
+        <div className="px-3 pb-3 pt-2 space-y-2">
+          {/* Winner banner */}
           {(() => {
             const sA = SEVERITY_ORDER[rA.overall_risk] || 0
             const sB = SEVERITY_ORDER[rB.overall_risk] || 0
             if (sA === sB) {
               return (
-                <p className="text-xs text-text-secondary text-center py-1.5">
-                  Both addresses have the same overall risk level.
-                </p>
+                <div className="py-2 px-3 rounded-lg bg-bg-tertiary/50 border border-white/10 text-center">
+                  <p className="text-xs text-text-secondary">Both addresses have the same overall risk.</p>
+                </div>
               )
             }
-            const saferLabel = sA < sB ? 'Address A' : 'Address B'
+            const safer = sA < sB ? 'A' : 'B'
+            const saferAddr = sA < sB ? addressA : resultB.address
             return (
-              <div className="py-1.5 px-2.5 rounded-lg bg-green-500/10 border border-green-500/20 mb-2">
-                <p className="text-xs text-green-400 text-center">
-                  <span className="font-semibold">{saferLabel}</span> has a lower overall risk.
-                </p>
+              <div className="py-2 px-3 rounded-lg bg-accent/10 border border-accent/20 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-accent shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-accent">Address {safer} is safer</p>
+                  <p className="text-[10px] text-text-secondary truncate">{saferAddr}</p>
+                </div>
               </div>
             )
           })()}
 
-          <button
-            onClick={() => setShowBreakdown(!showBreakdown)}
-            className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-text-primary py-1 transition-colors"
-          >
-            <span className="font-medium">Risk Breakdown</span>
-            {showBreakdown ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
+          {/* Column headers */}
+          <div className="grid grid-cols-[1fr_auto_auto] gap-1 px-1 pt-1">
+            <span className="text-[10px] text-text-secondary uppercase tracking-wider">Hazard</span>
+            <span className="text-[10px] text-text-secondary uppercase tracking-wider w-12 text-center">A</span>
+            <span className="text-[10px] text-text-secondary uppercase tracking-wider w-12 text-center">B</span>
+          </div>
 
-          {showBreakdown && (
-            <div className="space-y-2 mt-1">
-              {RISK_TYPES.map(({ key, label, Icon }) => {
-                const a = rA.risks?.[key]
-                const b = rB.risks?.[key]
-                if (!a && !b) return null
+          {/* Per-hazard rows */}
+          {showBreakdown && RISK_TYPES.map(({ key, label, Icon }) => {
+            const a = rA.risks?.[key]
+            const b = rB.risks?.[key]
+            if (!a && !b) return null
+            const scoreA = a?.score ?? 0
+            const scoreB = b?.score ?? 0
+            const betterA = scoreA < scoreB
+            const betterB = scoreB < scoreA
+            const tie = scoreA === scoreB
 
-                return (
-                  <div key={key} className="p-2 rounded-lg bg-bg-tertiary/30">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Icon className="w-3 h-3 text-text-secondary" />
-                      <span className="text-[11px] font-semibold text-text-primary">{label}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[{ risk: a, label: 'A' }, { risk: b, label: 'B' }].map(({ risk, label: l }) => (
-                        <div key={l}>
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[10px] text-text-secondary">{l}</span>
-                            {risk ? (
-                              <span className={`text-[10px] font-bold ${SEVERITY_COLORS[risk.severity]}`}>
-                                {risk.score}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-text-secondary">N/A</span>
-                            )}
-                          </div>
-                          {risk && (
-                            <div className="w-full h-1 bg-bg-tertiary rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${BAR_COLORS[risk.severity]}`}
-                                style={{ width: `${risk.score}%` }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
+            return (
+              <div key={key} className="rounded-lg bg-bg-tertiary/30 p-2">
+                <div className="grid grid-cols-[1fr_auto_auto] gap-1 items-center">
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="w-3.5 h-3.5 text-text-secondary" />
+                    <span className="text-[11px] font-medium text-text-primary">{label}</span>
+                  </div>
+                  <div className={`w-12 text-center rounded-md py-0.5 ${a ? (betterA && !tie ? 'bg-accent/15' : '') : ''}`}>
+                    <span className={`text-[11px] font-bold ${a ? SEVERITY_COLORS[a.severity] : 'text-text-secondary'}`}>
+                      {a ? a.score : '--'}
+                    </span>
+                  </div>
+                  <div className={`w-12 text-center rounded-md py-0.5 ${b ? (betterB && !tie ? 'bg-accent/15' : '') : ''}`}>
+                    <span className={`text-[11px] font-bold ${b ? SEVERITY_COLORS[b.severity] : 'text-text-secondary'}`}>
+                      {b ? b.score : '--'}
+                    </span>
+                  </div>
+                </div>
+                {/* Dual progress bars */}
+                <div className="mt-1.5 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] text-text-secondary w-2">A</span>
+                    <div className="flex-1 h-1 bg-bg-tertiary rounded-full overflow-hidden">
+                      {a && (
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${BAR_COLORS[a.severity]}`}
+                          style={{ width: `${a.score}%` }}
+                        />
+                      )}
                     </div>
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] text-text-secondary w-2">B</span>
+                    <div className="flex-1 h-1 bg-bg-tertiary rounded-full overflow-hidden">
+                      {b && (
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${BAR_COLORS[b.severity]}`}
+                          style={{ width: `${b.score}%` }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
