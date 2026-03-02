@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #0c1222;
+  --color-bg-secondary: #162032;
+  --color-bg-tertiary: #243046;
+  --color-accent: #10b981;
+  --color-accent-hover: #059669;
+  --color-text-primary: #f0fdf4;
+  --color-text-secondary: #94a3b8;
+  --color-risk-low: #22c55e;
+  --color-risk-moderate: #eab308;
+  --color-risk-high: #f97316;
+  --color-risk-extreme: #ef4444;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-bg-secondary);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-bg-tertiary);
+    border-radius: 3px;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(16, 185, 129, 0.2);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes typewriter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.streaming-text span {
+  opacity: 0;
+  animation: typewriter 0.05s ease forwards;
+}
+
+/* Google Maps control overrides — dark theme */
+.gm-style .gm-bundled-control button,
+.gm-style .gm-fullscreen-control {
+  background-color: var(--color-bg-secondary) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+.gm-style .gm-bundled-control button img,
+.gm-style .gm-fullscreen-control img {
+  filter: invert(1) brightness(0.8) !important;
+}
+
+.gm-style .gm-bundled-control button:hover,
+.gm-style .gm-fullscreen-control:hover {
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+/* Separator between + and - */
+.gm-style .gm-bundled-control .gmnoprint > div {
+  background-color: var(--color-bg-secondary) !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+.gm-style .gm-bundled-control .gmnoprint > div > div {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Bottom attribution bar */
+.gm-style .gm-style-cc,
+.gm-style .gm-style-cc > div,
+.gm-style .gm-style-cc a,
+.gm-style .gm-style-cc span {
+  background-color: transparent !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.gm-style .gm-style-cc button {
+  background-color: transparent !important;
+  color: var(--color-text-secondary) !important;
+  filter: invert(1) brightness(0.7) !important;
+}
+
+/* Attribution text container at the bottom */
+.gm-style > div:last-child {
+  background: var(--color-bg-primary) !important;
+}
+
+/* Terms / Report links */
+.gmnoprint.gm-style-cc {
+  background: transparent !important;
+}

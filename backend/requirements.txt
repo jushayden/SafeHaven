@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
+google-genai
+stripe
+fpdf2
+pydantic

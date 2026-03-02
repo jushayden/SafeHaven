@@ -1,0 +1,22 @@
+{
+  "name": "SafeHaven — AI Disaster Risk Assessment",
+  "short_name": "SafeHaven",
+  "description": "AI-powered disaster resilience tool. Get comprehensive risk profiles for any U.S. address.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0c1222",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/icons/logo-bg.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/logo-bg.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
