@@ -33,7 +33,7 @@ const OVERALL_BG = {
 }
 
 export default function CompareInline({ addressA, riskProfileA, onClose }) {
-  const [query, setQuery] = useState('')
+  const [hasText, setHasText] = useState(false)
   const [resultB, setResultB] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -42,6 +42,7 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
   const autocompleteRef = useRef(null)
 
   const analyzeAddress = useCallback(async (addr) => {
+    inputRef.current?.blur()
     setLoading(true)
     setError('')
     try {
@@ -58,13 +59,13 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
     }
   }, [])
 
-  // Attach Google Maps Autocomplete widget directly to the input
+  // Attach Google Maps Autocomplete widget directly to the input (uncontrolled)
   useEffect(() => {
-    if (resultB) return // Don't init when showing results
+    if (resultB) return
 
     const initAutocomplete = () => {
       if (!inputRef.current || !window.google?.maps?.places?.Autocomplete) return
-      if (autocompleteRef.current) return // Already initialized
+      if (autocompleteRef.current) return
 
       const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
         componentRestrictions: { country: 'us' },
@@ -75,7 +76,7 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
       ac.addListener('place_changed', () => {
         const place = ac.getPlace()
         if (place?.formatted_address) {
-          setQuery(place.formatted_address)
+          setHasText(true)
           analyzeAddress(place.formatted_address)
         }
       })
@@ -92,7 +93,6 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
     }
   }, [resultB, analyzeAddress])
 
-  // Clean up autocomplete widget when result is cleared
   useEffect(() => {
     if (resultB) {
       autocompleteRef.current = null
@@ -101,7 +101,8 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (query.trim()) analyzeAddress(query.trim())
+    const val = inputRef.current?.value?.trim()
+    if (val) analyzeAddress(val)
   }
 
   const rA = riskProfileA
@@ -145,7 +146,7 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
             <div className="flex items-center justify-between">
               <p className="text-xs text-text-secondary truncate flex-1">{resultB.address}</p>
               <button
-                onClick={() => { setResultB(null); setQuery(''); setError('') }}
+                onClick={() => { setResultB(null); setHasText(false); setError(''); if (inputRef.current) inputRef.current.value = '' }}
                 className="p-0.5 rounded hover:bg-white/10 ml-1"
               >
                 <X className="w-3 h-3 text-text-secondary" />
@@ -164,15 +165,14 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
             <input
               ref={inputRef}
               type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => setHasText(e.target.value.length > 0)}
               placeholder="Enter second address..."
               className="w-full pl-8 pr-9 py-2 bg-bg-tertiary/50 border border-white/10 rounded-lg text-xs text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
               disabled={loading}
             />
             <button
               type="submit"
-              disabled={loading || !query.trim()}
+              disabled={loading || !hasText}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded bg-accent hover:bg-accent-hover disabled:opacity-40 transition-colors z-10"
             >
               {loading ? (

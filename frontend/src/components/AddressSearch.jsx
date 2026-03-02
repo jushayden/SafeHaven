@@ -1,12 +1,20 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Search, MapPin, Loader2, X } from 'lucide-react'
 
 export default function AddressSearch({ onSearch, onClear, isLoading, hasResults }) {
-  const [query, setQuery] = useState('')
+  const [hasText, setHasText] = useState(false)
   const inputRef = useRef(null)
   const autocompleteRef = useRef(null)
 
-  // Attach Google Maps Autocomplete widget to the input
+  const triggerSearch = useCallback((address) => {
+    if (address) {
+      // Blur to dismiss the .pac-container dropdown
+      inputRef.current?.blur()
+      onSearch(address)
+    }
+  }, [onSearch])
+
+  // Attach Google Maps Autocomplete widget (uncontrolled input)
   useEffect(() => {
     const initAutocomplete = () => {
       if (!inputRef.current || !window.google?.maps?.places?.Autocomplete) return
@@ -21,8 +29,8 @@ export default function AddressSearch({ onSearch, onClear, isLoading, hasResults
       ac.addListener('place_changed', () => {
         const place = ac.getPlace()
         if (place?.formatted_address) {
-          setQuery(place.formatted_address)
-          onSearch(place.formatted_address)
+          setHasText(true)
+          triggerSearch(place.formatted_address)
         }
       })
 
@@ -33,11 +41,11 @@ export default function AddressSearch({ onSearch, onClear, isLoading, hasResults
     const t1 = setTimeout(initAutocomplete, 2000)
     const t2 = setTimeout(initAutocomplete, 5000)
     return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [onSearch])
+  }, [triggerSearch])
 
   const handleClear = () => {
-    setQuery('')
-    // Detach and re-create autocomplete on next render
+    if (inputRef.current) inputRef.current.value = ''
+    setHasText(false)
     autocompleteRef.current = null
     onClear?.()
     inputRef.current?.focus()
@@ -45,9 +53,8 @@ export default function AddressSearch({ onSearch, onClear, isLoading, hasResults
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (query.trim()) {
-      onSearch(query.trim())
-    }
+    const val = inputRef.current?.value?.trim()
+    if (val) triggerSearch(val)
   }
 
   return (
@@ -58,8 +65,7 @@ export default function AddressSearch({ onSearch, onClear, isLoading, hasResults
           <input
             ref={inputRef}
             type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => setHasText(e.target.value.length > 0)}
             placeholder="Enter any U.S. address..."
             className={`w-full pl-10 ${hasResults ? 'pr-20' : 'pr-12'} py-3 bg-bg-tertiary/50 border border-white/10 rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all`}
             disabled={isLoading}
@@ -77,7 +83,7 @@ export default function AddressSearch({ onSearch, onClear, isLoading, hasResults
             )}
             <button
               type="submit"
-              disabled={isLoading || !query.trim()}
+              disabled={isLoading || !hasText}
               className="p-1.5 rounded-md bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? (
