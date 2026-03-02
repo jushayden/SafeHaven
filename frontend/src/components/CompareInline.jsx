@@ -34,67 +34,16 @@ const OVERALL_BG = {
 
 export default function CompareInline({ addressA, riskProfileA, onClose }) {
   const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
   const [resultB, setResultB] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showBreakdown, setShowBreakdown] = useState(true)
-  const autocompleteService = useRef(null)
-  const wrapperRef = useRef(null)
-
-  useEffect(() => {
-    const tryInit = () => {
-      if (window.google?.maps?.places) {
-        autocompleteService.current = new window.google.maps.places.AutocompleteService()
-      }
-    }
-    tryInit()
-    const timer = setTimeout(tryInit, 2000)
-    const timer2 = setTimeout(tryInit, 5000)
-    return () => { clearTimeout(timer); clearTimeout(timer2) }
-  }, [])
-
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setShowSuggestions(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  const fetchSuggestions = useCallback((input) => {
-    if (input.length < 3) {
-      setSuggestions([])
-      return
-    }
-    // Lazy-init if the service wasn't ready at mount time
-    if (!autocompleteService.current && window.google?.maps?.places) {
-      autocompleteService.current = new window.google.maps.places.AutocompleteService()
-    }
-    if (!autocompleteService.current) {
-      setSuggestions([])
-      return
-    }
-    autocompleteService.current.getPlacePredictions(
-      { input, componentRestrictions: { country: 'us' }, types: ['address'] },
-      (predictions, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-          setSuggestions(predictions)
-          setShowSuggestions(true)
-        } else {
-          setSuggestions([])
-        }
-      }
-    )
-  }, [])
+  const inputRef = useRef(null)
+  const autocompleteRef = useRef(null)
 
   const analyzeAddress = useCallback(async (addr) => {
     setLoading(true)
     setError('')
-    setShowSuggestions(false)
     try {
       const geo = await geocodeAddress(addr)
       const risk = await getRiskProfile(geo.lat, geo.lng)
@@ -109,18 +58,46 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
     }
   }, [])
 
-  const handleSelect = (description) => {
-    setQuery(description)
-    setShowSuggestions(false)
-    setSuggestions([])
-    analyzeAddress(description)
-  }
+  // Attach Google Maps Autocomplete widget directly to the input
+  useEffect(() => {
+    if (resultB) return // Don't init when showing results
 
-  const handleInputChange = (e) => {
-    const value = e.target.value
-    setQuery(value)
-    fetchSuggestions(value)
-  }
+    const initAutocomplete = () => {
+      if (!inputRef.current || !window.google?.maps?.places?.Autocomplete) return
+      if (autocompleteRef.current) return // Already initialized
+
+      const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
+        componentRestrictions: { country: 'us' },
+        types: ['address'],
+        fields: ['formatted_address'],
+      })
+
+      ac.addListener('place_changed', () => {
+        const place = ac.getPlace()
+        if (place?.formatted_address) {
+          setQuery(place.formatted_address)
+          analyzeAddress(place.formatted_address)
+        }
+      })
+
+      autocompleteRef.current = ac
+    }
+
+    initAutocomplete()
+    const t1 = setTimeout(initAutocomplete, 1000)
+    const t2 = setTimeout(initAutocomplete, 3000)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [resultB, analyzeAddress])
+
+  // Clean up autocomplete widget when result is cleared
+  useEffect(() => {
+    if (resultB) {
+      autocompleteRef.current = null
+    }
+  }, [resultB])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -161,14 +138,14 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
       </div>
 
       {/* Address B search */}
-      <div className="px-3 pt-3" ref={wrapperRef}>
+      <div className="px-3 pt-3">
         <p className="text-[10px] text-text-secondary uppercase tracking-wider mb-1">Address B</p>
         {resultB ? (
           <div className={`p-2.5 rounded-lg border ${OVERALL_BG[rB.overall_risk]}`}>
             <div className="flex items-center justify-between">
               <p className="text-xs text-text-secondary truncate flex-1">{resultB.address}</p>
               <button
-                onClick={() => { setResultB(null); setQuery(''); setError(''); setSuggestions([]) }}
+                onClick={() => { setResultB(null); setQuery(''); setError('') }}
                 className="p-0.5 rounded hover:bg-white/10 ml-1"
               >
                 <X className="w-3 h-3 text-text-secondary" />
@@ -182,45 +159,29 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
             </div>
           </div>
         ) : (
-          <div className="relative">
-            <form onSubmit={handleSubmit} className="relative">
-              <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
-              <input
-                type="text"
-                value={query}
-                onChange={handleInputChange}
-                placeholder="Enter second address..."
-                className="w-full pl-8 pr-9 py-2 bg-bg-tertiary/50 border border-white/10 rounded-lg text-xs text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
-                disabled={loading}
-              />
-              <button
-                type="submit"
-                disabled={loading || !query.trim()}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded bg-accent hover:bg-accent-hover disabled:opacity-40 transition-colors"
-              >
-                {loading ? (
-                  <Loader2 className="w-3 h-3 text-white animate-spin" />
-                ) : (
-                  <Search className="w-3 h-3 text-white" />
-                )}
-              </button>
-            </form>
-
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-white/10 rounded-lg shadow-2xl overflow-hidden z-50">
-                {suggestions.map((s) => (
-                  <button
-                    key={s.place_id}
-                    onClick={() => handleSelect(s.description)}
-                    className="w-full px-3 py-2 text-left text-xs text-text-primary hover:bg-bg-tertiary/50 transition-colors flex items-center gap-2 border-b border-white/5 last:border-0"
-                  >
-                    <MapPin className="w-3 h-3 text-text-secondary shrink-0" />
-                    <span className="truncate">{s.description}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <form onSubmit={handleSubmit} className="relative">
+            <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary z-10" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Enter second address..."
+              className="w-full pl-8 pr-9 py-2 bg-bg-tertiary/50 border border-white/10 rounded-lg text-xs text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+              disabled={loading}
+            />
+            <button
+              type="submit"
+              disabled={loading || !query.trim()}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded bg-accent hover:bg-accent-hover disabled:opacity-40 transition-colors z-10"
+            >
+              {loading ? (
+                <Loader2 className="w-3 h-3 text-white animate-spin" />
+              ) : (
+                <Search className="w-3 h-3 text-white" />
+              )}
+            </button>
+          </form>
         )}
         {error && <p className="text-xs text-red-400 mt-1.5">{error}</p>}
       </div>
