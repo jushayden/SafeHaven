@@ -1,75 +1,44 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Search, MapPin, Loader2, X } from 'lucide-react'
 
 export default function AddressSearch({ onSearch, onClear, isLoading, hasResults }) {
   const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const autocompleteService = useRef(null)
   const inputRef = useRef(null)
-  const wrapperRef = useRef(null)
+  const autocompleteRef = useRef(null)
 
+  // Attach Google Maps Autocomplete widget to the input
   useEffect(() => {
-    const tryInit = () => {
-      if (window.google?.maps?.places) {
-        autocompleteService.current = new window.google.maps.places.AutocompleteService()
-      }
-    }
-    tryInit()
-    // Retry after a delay in case the Maps script loads after this component mounts
-    const timer = setTimeout(tryInit, 2000)
-    const timer2 = setTimeout(tryInit, 5000)
-    return () => { clearTimeout(timer); clearTimeout(timer2) }
-  }, [])
+    const initAutocomplete = () => {
+      if (!inputRef.current || !window.google?.maps?.places?.Autocomplete) return
+      if (autocompleteRef.current) return
 
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setShowSuggestions(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  const fetchSuggestions = useCallback((input) => {
-    if (!autocompleteService.current || input.length < 3) {
-      setSuggestions([])
-      return
-    }
-    autocompleteService.current.getPlacePredictions(
-      {
-        input,
+      const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
         componentRestrictions: { country: 'us' },
         types: ['address'],
-      },
-      (predictions, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-          setSuggestions(predictions)
-          setShowSuggestions(true)
-        } else {
-          setSuggestions([])
+        fields: ['formatted_address'],
+      })
+
+      ac.addListener('place_changed', () => {
+        const place = ac.getPlace()
+        if (place?.formatted_address) {
+          setQuery(place.formatted_address)
+          onSearch(place.formatted_address)
         }
-      }
-    )
-  }, [])
+      })
 
-  const handleInputChange = (e) => {
-    const value = e.target.value
-    setQuery(value)
-    fetchSuggestions(value)
-  }
+      autocompleteRef.current = ac
+    }
 
-  const handleSelect = (description) => {
-    setQuery(description)
-    setShowSuggestions(false)
-    onSearch(description)
-  }
+    initAutocomplete()
+    const t1 = setTimeout(initAutocomplete, 2000)
+    const t2 = setTimeout(initAutocomplete, 5000)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [onSearch])
 
   const handleClear = () => {
     setQuery('')
-    setSuggestions([])
-    setShowSuggestions(false)
+    // Detach and re-create autocomplete on next render
+    autocompleteRef.current = null
     onClear?.()
     inputRef.current?.focus()
   }
@@ -77,26 +46,25 @@ export default function AddressSearch({ onSearch, onClear, isLoading, hasResults
   const handleSubmit = (e) => {
     e.preventDefault()
     if (query.trim()) {
-      setShowSuggestions(false)
       onSearch(query.trim())
     }
   }
 
   return (
-    <div ref={wrapperRef} className="relative w-full">
+    <div className="relative w-full">
       <form onSubmit={handleSubmit} className="relative">
         <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary z-10" />
           <input
             ref={inputRef}
             type="text"
             value={query}
-            onChange={handleInputChange}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Enter any U.S. address..."
             className={`w-full pl-10 ${hasResults ? 'pr-20' : 'pr-12'} py-3 bg-bg-tertiary/50 border border-white/10 rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all`}
             disabled={isLoading}
           />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
             {hasResults && !isLoading && (
               <button
                 type="button"
@@ -121,21 +89,6 @@ export default function AddressSearch({ onSearch, onClear, isLoading, hasResults
           </div>
         </div>
       </form>
-
-      {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-white/10 rounded-lg shadow-2xl overflow-hidden z-50">
-          {suggestions.map((s) => (
-            <button
-              key={s.place_id}
-              onClick={() => handleSelect(s.description)}
-              className="w-full px-4 py-3 text-left text-sm text-text-primary hover:bg-bg-tertiary/50 transition-colors flex items-center gap-2 border-b border-white/5 last:border-0"
-            >
-              <MapPin className="w-4 h-4 text-text-secondary shrink-0" />
-              <span>{s.description}</span>
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

@@ -28,6 +28,8 @@ from app.data.risk_data import get_state_risk, severity_label
 from app.services.elevation_service import get_elevation
 from app.services.coast_service import get_coast_proximity
 from app.services.census_service import get_population_density
+from app.services.building_age_service import get_building_age
+from app.services.wildfire_vegetation_service import get_wildfire_hazard_potential
 
 logger = logging.getLogger("safehaven.risk_profile")
 router = APIRouter()
@@ -162,6 +164,7 @@ def _adjust_scores_with_location_data(
     elevation: Dict[str, Any],
     coast: Dict[str, Any],
     density: Dict[str, Any],
+    **kwargs,
 ) -> None:
     """
     Adjust base risk scores using elevation, coast proximity, and density.
@@ -217,6 +220,45 @@ def _adjust_scores_with_location_data(
                 risks[key]["score"] = min(100, risks[key]["score"] + 3)
                 risks[key]["severity"] = severity_label(risks[key]["score"])
 
+    # --- Building age adjustments (earthquake & hurricane) ---
+    building_age = kwargs.get("building_age", {})
+    pct_pre_1980 = building_age.get("pct_pre_1980")
+    if pct_pre_1980 is not None:
+        eq = risks["earthquake"]
+        hur = risks["hurricane"]
+        if pct_pre_1980 >= 70:
+            eq["score"] = min(100, eq["score"] + 12)
+            hur["score"] = min(100, hur["score"] + 8)
+        elif pct_pre_1980 >= 50:
+            eq["score"] = min(100, eq["score"] + 8)
+            hur["score"] = min(100, hur["score"] + 5)
+        elif pct_pre_1980 >= 30:
+            eq["score"] = min(100, eq["score"] + 4)
+            hur["score"] = min(100, hur["score"] + 3)
+        # Newer buildings are more resilient
+        elif pct_pre_1980 <= 10:
+            eq["score"] = max(0, eq["score"] - 5)
+            hur["score"] = max(0, hur["score"] - 3)
+        eq["severity"] = severity_label(eq["score"])
+        hur["severity"] = severity_label(hur["score"])
+
+    # --- Wildfire vegetation adjustments ---
+    whp = kwargs.get("wildfire_vegetation", {})
+    whp_value = whp.get("whp_value")
+    if whp_value is not None:
+        wf = risks["wildfire"]
+        if whp_value >= 10:     # Very High
+            wf["score"] = min(100, wf["score"] + 15)
+        elif whp_value >= 8:    # High
+            wf["score"] = min(100, wf["score"] + 10)
+        elif whp_value >= 6:    # Moderate
+            wf["score"] = min(100, wf["score"] + 5)
+        elif whp_value <= 0:    # Non-Burnable
+            wf["score"] = max(0, wf["score"] - 10)
+        elif whp_value <= 3:    # Very Low
+            wf["score"] = max(0, wf["score"] - 5)
+        wf["severity"] = severity_label(wf["score"])
+
     # Recalculate overall risk
     max_score = max(risks[h]["score"] for h in ("hurricane", "flood", "earthquake", "wildfire"))
     risk_info["overall_risk"] = severity_label(max_score)
@@ -247,9 +289,11 @@ async def risk_profile(
         eq_task = _fetch_recent_earthquakes(client, lat, lng)
         elev_task = get_elevation(client, lat, lng)
         density_task = get_population_density(client, lat, lng)
+        building_task = get_building_age(client, lat, lng)
+        whp_task = get_wildfire_hazard_potential(client, lat, lng)
 
-        (state_code, address, state_name), earthquakes, elevation, density = (
-            await asyncio.gather(geo_task, eq_task, elev_task, density_task)
+        (state_code, address, state_name), earthquakes, elevation, density, building_age, wildfire_veg = (
+            await asyncio.gather(geo_task, eq_task, elev_task, density_task, building_task, whp_task)
         )
 
     # Determine state-level risk data
@@ -277,7 +321,11 @@ async def risk_profile(
         eq_risk["severity"] = severity_label(adjusted_score)
 
     # Adjust scores with location-specific data
-    _adjust_scores_with_location_data(risk_info, elevation, coast, density)
+    _adjust_scores_with_location_data(
+        risk_info, elevation, coast, density,
+        building_age=building_age,
+        wildfire_vegetation=wildfire_veg,
+    )
 
     return {
         "address": address or f"{lat}, {lng}",
@@ -290,5 +338,7 @@ async def risk_profile(
             "elevation": elevation,
             "coast_proximity": coast,
             "population_density": density,
+            "building_age": building_age,
+            "wildfire_vegetation": wildfire_veg,
         },
     }
