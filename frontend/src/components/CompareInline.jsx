@@ -5,6 +5,12 @@ import {
 } from 'lucide-react'
 import { geocodeAddress, getRiskProfile } from '../services/api'
 
+function dismissPac() {
+  document.querySelectorAll('.pac-container').forEach((el) => {
+    el.style.display = 'none'
+  })
+}
+
 const RISK_TYPES = [
   { key: 'hurricane', label: 'Hurricane', Icon: CloudLightning },
   { key: 'flood', label: 'Flood', Icon: Waves },
@@ -42,6 +48,7 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
   const autocompleteRef = useRef(null)
 
   const analyzeAddress = useCallback(async (addr) => {
+    dismissPac()
     inputRef.current?.blur()
     setLoading(true)
     setError('')

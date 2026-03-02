@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Search, MapPin, Loader2, X } from 'lucide-react'
 
+// Force-hide all Google autocomplete dropdowns
+function dismissPac() {
+  document.querySelectorAll('.pac-container').forEach((el) => {
+    el.style.display = 'none'
+  })
+}
+
 export default function AddressSearch({ onSearch, onClear, isLoading, hasResults }) {
   const [hasText, setHasText] = useState(false)
   const inputRef = useRef(null)
@@ -8,7 +15,7 @@ export default function AddressSearch({ onSearch, onClear, isLoading, hasResults
 
   const triggerSearch = useCallback((address) => {
     if (address) {
-      // Blur to dismiss the .pac-container dropdown
+      dismissPac()
       inputRef.current?.blur()
       onSearch(address)
     }
@@ -43,10 +50,34 @@ export default function AddressSearch({ onSearch, onClear, isLoading, hasResults
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [triggerSearch])
 
+  // Handle Enter key directly — Google Autocomplete swallows Enter
+  // when the dropdown is open, preventing form submit
+  useEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter') {
+        // If a pac-item is highlighted, let Google handle it (place_changed will fire)
+        const highlighted = document.querySelector('.pac-item-selected')
+        if (highlighted) return
+
+        // Otherwise, submit with whatever text is in the input
+        e.preventDefault()
+        const val = input.value?.trim()
+        if (val) triggerSearch(val)
+      }
+    }
+
+    input.addEventListener('keydown', handleKeyDown)
+    return () => input.removeEventListener('keydown', handleKeyDown)
+  }, [triggerSearch])
+
   const handleClear = () => {
     if (inputRef.current) inputRef.current.value = ''
     setHasText(false)
     autocompleteRef.current = null
+    dismissPac()
     onClear?.()
     inputRef.current?.focus()
   }
