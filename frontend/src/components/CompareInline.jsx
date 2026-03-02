@@ -51,7 +51,8 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
     }
     tryInit()
     const timer = setTimeout(tryInit, 2000)
-    return () => clearTimeout(timer)
+    const timer2 = setTimeout(tryInit, 5000)
+    return () => { clearTimeout(timer); clearTimeout(timer2) }
   }, [])
 
   useEffect(() => {
@@ -65,7 +66,15 @@ export default function CompareInline({ addressA, riskProfileA, onClose }) {
   }, [])
 
   const fetchSuggestions = useCallback((input) => {
-    if (!autocompleteService.current || input.length < 3) {
+    if (input.length < 3) {
+      setSuggestions([])
+      return
+    }
+    // Lazy-init if the service wasn't ready at mount time
+    if (!autocompleteService.current && window.google?.maps?.places) {
+      autocompleteService.current = new window.google.maps.places.AutocompleteService()
+    }
+    if (!autocompleteService.current) {
       setSuggestions([])
       return
     }
