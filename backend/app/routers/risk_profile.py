@@ -5,11 +5,13 @@ Strategy
 --------
 1.  Reverse-geocode the provided lat/lng to determine the US state.
 2.  Look up curated state-level risk data (the *primary* data source).
-3.  In parallel, query the USGS Earthquake Hazards API for recent nearby
-    seismic events (this API is free and reliable).
-4.  Merge the live earthquake data into the response so the frontend can
-    display recent quakes on a map.
-5.  If reverse geocoding fails, return a sensible "unknown location" fallback.
+3.  In parallel, query:
+    - USGS Earthquake Hazards API for recent nearby seismic events
+    - USGS Elevation Point Query Service for ground elevation
+    - Census Bureau TIGERweb for population density
+4.  Calculate proximity to the nearest coastline.
+5.  Adjust base risk scores using elevation, coast proximity, and density.
+6.  Return the enriched response to the frontend.
 """
 
 from __future__ import annotations
@@ -23,6 +25,9 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.config import GOOGLE_MAPS_API_KEY
 from app.data.risk_data import get_state_risk, severity_label
+from app.services.elevation_service import get_elevation
+from app.services.coast_service import get_coast_proximity
+from app.services.census_service import get_population_density
 
 logger = logging.getLogger("safehaven.risk_profile")
 router = APIRouter()
@@ -152,6 +157,71 @@ def _adjust_earthquake_score(
     return min(100, base_score + bonus)
 
 
+def _adjust_scores_with_location_data(
+    risk_info: Dict[str, Any],
+    elevation: Dict[str, Any],
+    coast: Dict[str, Any],
+    density: Dict[str, Any],
+) -> None:
+    """
+    Adjust base risk scores using elevation, coast proximity, and density.
+    Modifies risk_info in place.
+    """
+    risks = risk_info["risks"]
+
+    # --- Elevation adjustments (flood risk) ---
+    elev_ft = elevation.get("elevation_ft")
+    if elev_ft is not None:
+        flood = risks["flood"]
+        if elev_ft <= 10:
+            flood["score"] = min(100, flood["score"] + 15)
+        elif elev_ft <= 30:
+            flood["score"] = min(100, flood["score"] + 10)
+        elif elev_ft <= 50:
+            flood["score"] = min(100, flood["score"] + 5)
+        elif elev_ft >= 500:
+            flood["score"] = max(0, flood["score"] - 10)
+        elif elev_ft >= 200:
+            flood["score"] = max(0, flood["score"] - 5)
+        flood["severity"] = severity_label(flood["score"])
+
+    # --- Coast proximity adjustments (hurricane & flood) ---
+    coast_dist = coast.get("coast_distance_miles")
+    if coast_dist is not None:
+        hurricane = risks["hurricane"]
+        flood = risks["flood"]
+
+        if coast_dist <= 10:
+            hurricane["score"] = min(100, hurricane["score"] + 12)
+            flood["score"] = min(100, flood["score"] + 8)
+        elif coast_dist <= 30:
+            hurricane["score"] = min(100, hurricane["score"] + 8)
+            flood["score"] = min(100, flood["score"] + 4)
+        elif coast_dist <= 50:
+            hurricane["score"] = min(100, hurricane["score"] + 4)
+        elif coast_dist >= 200:
+            hurricane["score"] = max(0, hurricane["score"] - 8)
+        elif coast_dist >= 100:
+            hurricane["score"] = max(0, hurricane["score"] - 4)
+
+        hurricane["severity"] = severity_label(hurricane["score"])
+        flood["severity"] = severity_label(flood["score"])
+
+    # --- Population density adjustments ---
+    density_val = density.get("density_per_sq_mile")
+    if density_val is not None:
+        # High density = harder evacuations, more infrastructure strain
+        # Slightly increase all risk scores for very high density
+        if density_val >= 10000:
+            for key in risks:
+                risks[key]["score"] = min(100, risks[key]["score"] + 3)
+                risks[key]["severity"] = severity_label(risks[key]["score"])
+
+    # Recalculate overall risk
+    max_score = max(risks[h]["score"] for h in ("hurricane", "flood", "earthquake", "wildfire"))
+    risk_info["overall_risk"] = severity_label(max_score)
+
+
 # ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
@@ -165,14 +235,21 @@ async def risk_profile(
     Compute a comprehensive natural-hazard risk profile for a location.
 
     The response contains risk scores and severity labels for hurricane, flood,
-    earthquake, and wildfire -- plus a list of recent earthquakes from USGS.
+    earthquake, and wildfire -- plus elevation, coast proximity, population
+    density, and recent earthquakes.
     """
+    # Coast proximity is a pure calculation (no network), run immediately
+    coast = get_coast_proximity(lat, lng)
+
     async with httpx.AsyncClient(timeout=15) as client:
-        # Run reverse geocode and USGS query in parallel
+        # Run all async queries in parallel
         geo_task = _reverse_geocode(client, lat, lng)
         eq_task = _fetch_recent_earthquakes(client, lat, lng)
-        (state_code, address, state_name), earthquakes = await asyncio.gather(
-            geo_task, eq_task
+        elev_task = get_elevation(client, lat, lng)
+        density_task = get_population_density(client, lat, lng)
+
+        (state_code, address, state_name), earthquakes, elevation, density = (
+            await asyncio.gather(geo_task, eq_task, elev_task, density_task)
         )
 
     # Determine state-level risk data
@@ -199,12 +276,8 @@ async def risk_profile(
         eq_risk["score"] = adjusted_score
         eq_risk["severity"] = severity_label(adjusted_score)
 
-        # Recalculate overall risk
-        max_score = max(
-            risk_info["risks"][h]["score"]
-            for h in ("hurricane", "flood", "earthquake", "wildfire")
-        )
-        risk_info["overall_risk"] = severity_label(max_score)
+    # Adjust scores with location-specific data
+    _adjust_scores_with_location_data(risk_info, elevation, coast, density)
 
     return {
         "address": address or f"{lat}, {lng}",
@@ -213,4 +286,9 @@ async def risk_profile(
         "risks": risk_info["risks"],
         "overall_risk": risk_info["overall_risk"],
         "recent_earthquakes": earthquakes,
+        "location_factors": {
+            "elevation": elevation,
+            "coast_proximity": coast,
+            "population_density": density,
+        },
     }

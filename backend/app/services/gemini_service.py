@@ -69,6 +69,22 @@ def _build_user_prompt(risk_data: Dict[str, Any]) -> str:
 
     risk_block = "\n".join(risk_lines)
 
+    # Location-specific factors
+    location_factors = risk_data.get("location_factors", {})
+    elev = location_factors.get("elevation", {})
+    coast = location_factors.get("coast_proximity", {})
+    density = location_factors.get("population_density", {})
+
+    factor_lines: list[str] = []
+    if elev.get("elevation_ft") is not None:
+        factor_lines.append(f"- **Elevation:** {elev['elevation_ft']} ft ({elev.get('elevation_m', 'N/A')} m) above sea level")
+    if coast.get("coast_distance_miles") is not None:
+        factor_lines.append(f"- **Coast proximity:** {coast['coast_distance_miles']} miles from nearest coastline ({coast.get('coast_zone', 'N/A')} zone)")
+    if density.get("density_per_sq_mile") is not None:
+        factor_lines.append(f"- **Population density:** {density['density_per_sq_mile']} people/sq mi ({density.get('density_label', 'N/A')})")
+
+    factor_block = "\n".join(factor_lines) if factor_lines else "No additional location data available."
+
     return f"""\
 Generate a comprehensive disaster-preparedness report for the following location.
 
@@ -78,18 +94,25 @@ Generate a comprehensive disaster-preparedness report for the following location
 **Individual hazard assessments:**
 {risk_block}
 
-**Important context:** These risk scores are regional estimates based on state and
-county-level data from FEMA, USGS, and NOAA. They do not reflect property-specific
-factors such as elevation, building construction, local drainage, or proximity to
-water bodies. Mention this caveat briefly in the summary and encourage the reader
-to consult local floodplain maps and their county emergency management office for
-site-specific assessments.
+**Location-specific factors (used to refine risk scores):**
+{factor_block}
+
+**Important context:** These risk scores combine state-level data from FEMA, USGS,
+and NOAA with location-specific factors including elevation, proximity to coastline,
+and population density. They have been adjusted based on these factors but do not
+reflect property-specific factors such as building construction, local drainage
+infrastructure, or micro-terrain features. Mention this briefly and encourage the
+reader to consult local floodplain maps and their county emergency management office
+for site-specific assessments. Integrate the elevation, coast proximity, and
+population density data into your analysis where relevant (e.g., low elevation
+increases flood risk, coastal proximity increases storm surge risk).
 
 Please structure your report with the following sections (use Markdown headings):
 
 ## 1. Overall Risk Assessment Summary
 Provide a 2-3 paragraph summary interpreting the risk scores above in plain
-language.  Mention which hazards are most urgent and why.
+language.  Mention which hazards are most urgent and why. Reference the
+location-specific factors (elevation, coast distance, density) in your analysis.
 
 ## 2. Top 3 Recommended Preparedness Actions
 List the three most impactful things a resident at this address should do

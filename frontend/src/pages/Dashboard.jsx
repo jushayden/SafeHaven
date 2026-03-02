@@ -95,6 +95,7 @@ export default function Dashboard() {
           state: risk.state,
           risks: risk.risks,
           overall_risk: risk.overall_risk,
+          location_factors: risk.location_factors,
         })
         console.log('[SafeHaven] AI report received')
         setAiReport(report.report || '')
@@ -204,7 +205,7 @@ export default function Dashboard() {
 
           {riskProfile && !isLoading && (
             <ErrorBoundary>
-              <OverallRisk severity={riskProfile.overall_risk} address={address} />
+              <OverallRisk severity={riskProfile.overall_risk} address={address} locationFactors={riskProfile.location_factors} />
 
               {/* NOAA Active Alerts */}
               {mapCenter && (
