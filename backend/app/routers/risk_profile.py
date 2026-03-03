@@ -174,23 +174,25 @@ def _adjust_scores_with_location_data(
     risks = risk_info["risks"]
 
     # --- Elevation adjustments (flood risk) ---
+    # State base scores assume a statewide average. Elevation is one of the
+    # strongest predictors of flood risk, so adjustments should be meaningful.
     elev_ft = elevation.get("elevation_ft")
     if elev_ft is not None:
         flood = risks["flood"]
         if elev_ft <= 10:
-            flood["score"] = min(100, flood["score"] + 15)
+            flood["score"] = min(100, flood["score"] + 20)
         elif elev_ft <= 30:
-            flood["score"] = min(100, flood["score"] + 10)
+            flood["score"] = min(100, flood["score"] + 12)
         elif elev_ft <= 50:
-            flood["score"] = min(100, flood["score"] + 5)
+            flood["score"] = min(100, flood["score"] + 6)
         elif elev_ft >= 500:
-            flood["score"] = max(0, flood["score"] - 15)
+            flood["score"] = max(0, flood["score"] - 25)
         elif elev_ft >= 200:
-            flood["score"] = max(0, flood["score"] - 10)
+            flood["score"] = max(0, flood["score"] - 20)
         elif elev_ft >= 100:
-            flood["score"] = max(0, flood["score"] - 7)
+            flood["score"] = max(0, flood["score"] - 15)
         elif elev_ft >= 75:
-            flood["score"] = max(0, flood["score"] - 4)
+            flood["score"] = max(0, flood["score"] - 10)
         flood["severity"] = severity_label(flood["score"])
 
     # --- Coast proximity adjustments (hurricane & flood) ---
@@ -200,17 +202,20 @@ def _adjust_scores_with_location_data(
         flood = risks["flood"]
 
         if coast_dist <= 10:
-            hurricane["score"] = min(100, hurricane["score"] + 12)
-            flood["score"] = min(100, flood["score"] + 8)
+            hurricane["score"] = min(100, hurricane["score"] + 15)
+            flood["score"] = min(100, flood["score"] + 10)
         elif coast_dist <= 30:
-            hurricane["score"] = min(100, hurricane["score"] + 8)
-            flood["score"] = min(100, flood["score"] + 4)
+            hurricane["score"] = min(100, hurricane["score"] + 10)
+            flood["score"] = min(100, flood["score"] + 6)
         elif coast_dist <= 50:
-            hurricane["score"] = min(100, hurricane["score"] + 4)
+            hurricane["score"] = min(100, hurricane["score"] + 5)
         elif coast_dist >= 200:
-            hurricane["score"] = max(0, hurricane["score"] - 8)
+            hurricane["score"] = max(0, hurricane["score"] - 15)
+            flood["score"] = max(0, flood["score"] - 5)
         elif coast_dist >= 100:
-            hurricane["score"] = max(0, hurricane["score"] - 4)
+            hurricane["score"] = max(0, hurricane["score"] - 10)
+        elif coast_dist >= 50:
+            hurricane["score"] = max(0, hurricane["score"] - 5)
 
         hurricane["severity"] = severity_label(hurricane["score"])
         flood["severity"] = severity_label(flood["score"])
