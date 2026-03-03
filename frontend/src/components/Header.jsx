@@ -7,7 +7,7 @@ export default function Header() {
       <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 no-underline">
           <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-            <img src="/icons/logo-bg.png" alt="SafeHaven" className="w-[140%] h-[140%] object-cover" />
+            <img src="/icons/safehavencover3.jpg" alt="SafeHaven" className="w-[140%] h-[140%] object-cover" />
           </div>
           <span className="text-lg font-bold text-text-primary tracking-tight">
             Safe<span className="text-accent">Haven</span>

@@ -42,7 +42,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-              <img src="/icons/logo-bg.png" alt="SafeHaven" className="w-[140%] h-[140%] object-cover" />
+              <img src="/icons/safehavencover3.jpg" alt="SafeHaven" className="w-[140%] h-[140%] object-cover" />
             </div>
             <span className="text-base font-bold text-text-primary tracking-tight">
               Safe<span className="text-accent">Haven</span>
@@ -182,7 +182,7 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-sm overflow-hidden shrink-0 opacity-60 flex items-center justify-center">
-              <img src="/icons/logo-bg.png" alt="" className="w-[140%] h-[140%] object-cover" />
+              <img src="/icons/safehavencover3.jpg" alt="" className="w-[140%] h-[140%] object-cover" />
             </div>
             <span className="text-xs text-text-secondary">
               SafeHaven — MEGA Hackathon 2026
