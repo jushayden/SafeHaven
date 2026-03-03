@@ -184,9 +184,13 @@ def _adjust_scores_with_location_data(
         elif elev_ft <= 50:
             flood["score"] = min(100, flood["score"] + 5)
         elif elev_ft >= 500:
-            flood["score"] = max(0, flood["score"] - 10)
+            flood["score"] = max(0, flood["score"] - 15)
         elif elev_ft >= 200:
-            flood["score"] = max(0, flood["score"] - 5)
+            flood["score"] = max(0, flood["score"] - 10)
+        elif elev_ft >= 100:
+            flood["score"] = max(0, flood["score"] - 7)
+        elif elev_ft >= 75:
+            flood["score"] = max(0, flood["score"] - 4)
         flood["severity"] = severity_label(flood["score"])
 
     # --- Coast proximity adjustments (hurricane & flood) ---
