@@ -30,6 +30,7 @@ from app.services.coast_service import get_coast_proximity
 from app.services.census_service import get_population_density
 from app.services.building_age_service import get_building_age
 from app.services.wildfire_vegetation_service import get_wildfire_hazard_potential
+from app.services.soil_service import get_soil_data
 
 logger = logging.getLogger("safehaven.risk_profile")
 router = APIRouter()
@@ -259,6 +260,31 @@ def _adjust_scores_with_location_data(
             wf["score"] = max(0, wf["score"] - 5)
         wf["severity"] = severity_label(wf["score"])
 
+    # --- Soil / liquefaction adjustments (earthquake & flood) ---
+    soil = kwargs.get("soil", {})
+    liq_risk = soil.get("liquefaction_risk")
+    flood_susc = soil.get("flood_susceptibility")
+    if liq_risk and liq_risk != "Unknown":
+        eq = risks["earthquake"]
+        if liq_risk == "High":
+            eq["score"] = min(100, eq["score"] + 12)
+        elif liq_risk == "Moderate":
+            eq["score"] = min(100, eq["score"] + 5)
+        elif liq_risk == "Very Low":
+            eq["score"] = max(0, eq["score"] - 8)
+        elif liq_risk == "Low":
+            eq["score"] = max(0, eq["score"] - 3)
+        eq["severity"] = severity_label(eq["score"])
+    if flood_susc and flood_susc != "Unknown":
+        fl = risks["flood"]
+        if flood_susc == "High":
+            fl["score"] = min(100, fl["score"] + 8)
+        elif flood_susc == "Moderate":
+            fl["score"] = min(100, fl["score"] + 3)
+        elif flood_susc == "Low":
+            fl["score"] = max(0, fl["score"] - 5)
+        fl["severity"] = severity_label(fl["score"])
+
     # Recalculate overall risk
     max_score = max(risks[h]["score"] for h in ("hurricane", "flood", "earthquake", "wildfire"))
     risk_info["overall_risk"] = severity_label(max_score)
@@ -291,9 +317,10 @@ async def risk_profile(
         density_task = get_population_density(client, lat, lng)
         building_task = get_building_age(client, lat, lng)
         whp_task = get_wildfire_hazard_potential(client, lat, lng)
+        soil_task = get_soil_data(client, lat, lng)
 
-        (state_code, address, state_name), earthquakes, elevation, density, building_age, wildfire_veg = (
-            await asyncio.gather(geo_task, eq_task, elev_task, density_task, building_task, whp_task)
+        (state_code, address, state_name), earthquakes, elevation, density, building_age, wildfire_veg, soil = (
+            await asyncio.gather(geo_task, eq_task, elev_task, density_task, building_task, whp_task, soil_task)
         )
 
     # Determine state-level risk data
@@ -325,6 +352,7 @@ async def risk_profile(
         risk_info, elevation, coast, density,
         building_age=building_age,
         wildfire_vegetation=wildfire_veg,
+        soil=soil,
     )
 
     return {
@@ -340,5 +368,6 @@ async def risk_profile(
             "population_density": density,
             "building_age": building_age,
             "wildfire_vegetation": wildfire_veg,
+            "soil": soil,
         },
     }

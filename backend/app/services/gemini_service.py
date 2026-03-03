@@ -77,6 +77,7 @@ def _build_user_prompt(risk_data: Dict[str, Any]) -> str:
 
     building = location_factors.get("building_age", {})
     whp = location_factors.get("wildfire_vegetation", {})
+    soil = location_factors.get("soil", {})
 
     factor_lines: list[str] = []
     if elev.get("elevation_ft") is not None:
@@ -89,6 +90,8 @@ def _build_user_prompt(risk_data: Dict[str, Any]) -> str:
         factor_lines.append(f"- **Building age:** Median era {building['median_era']}, {building.get('pct_pre_1980', 'N/A')}% built before 1980 (vulnerability: {building.get('vulnerability', 'N/A')})")
     if whp.get("whp_class") is not None and whp.get("whp_class") != "Unknown":
         factor_lines.append(f"- **Wildfire vegetation hazard:** {whp['whp_class']} (USFS Wildfire Hazard Potential score: {whp.get('whp_value', 'N/A')})")
+    if soil.get("soil_type") is not None:
+        factor_lines.append(f"- **Soil:** {soil['soil_type']} ({soil.get('texture', 'N/A')} texture, {soil.get('drainage_class', 'N/A')}). Liquefaction risk: {soil.get('liquefaction_risk', 'N/A')}, flood susceptibility: {soil.get('flood_susceptibility', 'N/A')}")
 
     factor_block = "\n".join(factor_lines) if factor_lines else "No additional location data available."
 
@@ -106,15 +109,17 @@ Generate a comprehensive disaster-preparedness report for the following location
 
 **Important context:** These risk scores combine state-level data from FEMA, USGS,
 and NOAA with location-specific factors including elevation, proximity to coastline,
-population density, building age (from Census data), and wildfire vegetation hazard
-(from USFS). They have been adjusted based on these factors but do not reflect
-property-specific factors such as individual building construction, local drainage
-infrastructure, or micro-terrain features. Mention this briefly and encourage the
+population density, building age (from Census data), wildfire vegetation hazard
+(from USFS), and soil type/liquefaction risk (from USDA NRCS). They have been
+adjusted based on these factors but do not reflect property-specific factors such
+as individual building construction or micro-terrain features. Mention this briefly
+and encourage the
 reader to consult local floodplain maps and their county emergency management office
 for site-specific assessments. Integrate ALL location-specific factors into your
 analysis where relevant (e.g., low elevation increases flood risk, coastal proximity
 increases storm surge risk, older buildings are more vulnerable to earthquakes and
-hurricanes, high wildfire hazard potential indicates dense vegetation and fuel load).
+hurricanes, high wildfire hazard potential indicates dense vegetation and fuel load,
+sandy poorly-drained soil increases liquefaction risk during earthquakes).
 
 Please structure your report with the following sections (use Markdown headings):
 

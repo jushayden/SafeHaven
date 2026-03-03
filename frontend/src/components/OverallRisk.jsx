@@ -1,4 +1,4 @@
-import { ShieldAlert, AlertTriangle, Mountain, Navigation, Users, Building2, TreePine } from 'lucide-react'
+import { ShieldAlert, AlertTriangle, Mountain, Navigation, Users, Building2, TreePine, Layers } from 'lucide-react'
 
 const SEVERITY_STYLES = {
   Low: 'from-risk-low/20 to-transparent border-risk-low/30 text-risk-low',
@@ -15,8 +15,9 @@ export default function OverallRisk({ severity, address, locationFactors }) {
   const density = locationFactors?.population_density
   const building = locationFactors?.building_age
   const whp = locationFactors?.wildfire_vegetation
+  const soil = locationFactors?.soil
 
-  const hasFactors = elev?.elevation_ft != null || coast?.coast_distance_miles != null || density?.density_per_sq_mile != null || building?.median_era != null || (whp?.whp_class != null && whp?.whp_class !== 'Unknown')
+  const hasFactors = elev?.elevation_ft != null || coast?.coast_distance_miles != null || density?.density_per_sq_mile != null || building?.median_era != null || (whp?.whp_class != null && whp?.whp_class !== 'Unknown') || (soil?.texture != null)
 
   return (
     <div
@@ -71,13 +72,20 @@ export default function OverallRisk({ severity, address, locationFactors }) {
               <p className="text-[10px] text-text-secondary">Fire Veg</p>
             </div>
           )}
+          {soil?.texture != null && (
+            <div className="p-2 rounded-lg bg-white/5 border border-white/5 text-center">
+              <Layers className="w-3.5 h-3.5 text-text-secondary mx-auto mb-1" />
+              <p className="text-sm font-bold text-text-primary">{soil.texture}</p>
+              <p className="text-[10px] text-text-secondary">Soil</p>
+            </div>
+          )}
         </div>
       )}
 
       <div className="flex items-start gap-2 mt-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
         <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
         <p className="text-xs text-amber-200/80 leading-relaxed">
-          <span className="font-semibold text-amber-300">Disclaimer:</span> Risk scores are estimates combining FEMA, USGS, NOAA, Census, and USFS data with location-specific factors (elevation, coast proximity, population density, building age, wildfire vegetation). They do not account for individual building construction, local drainage, or micro-terrain features.
+          <span className="font-semibold text-amber-300">Disclaimer:</span> Risk scores are estimates combining FEMA, USGS, NOAA, Census, USFS, and USDA NRCS data with location-specific factors (elevation, coast proximity, population density, building age, wildfire vegetation, soil type). They do not account for individual building construction or micro-terrain features.
         </p>
       </div>
     </div>
