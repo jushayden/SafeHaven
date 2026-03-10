@@ -43,11 +43,15 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# CORS -- allow all origins during development
+# CORS -- restrict to our frontend domains
 # ---------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://safehaven.tools",
+        "https://www.safehaven.tools",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
