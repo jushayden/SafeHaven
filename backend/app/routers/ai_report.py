@@ -8,12 +8,15 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.services.gemini_service import generate_safety_report
 
 logger = logging.getLogger("safehaven.ai_report")
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 
@@ -42,7 +45,8 @@ class AIReportRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/ai-report")
-async def ai_report(payload: AIReportRequest):
+@limiter.limit("5/minute")
+async def ai_report(request: Request, payload: AIReportRequest):
     """
     Generate a comprehensive disaster-preparedness report.
 

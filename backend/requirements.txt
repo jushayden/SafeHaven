@@ -6,3 +6,4 @@ google-genai
 stripe
 fpdf2
 pydantic
+slowapi
